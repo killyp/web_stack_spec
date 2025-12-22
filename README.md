@@ -14,11 +14,10 @@ A comprehensive reference for building production-ready web applications using T
 6. [OAuth Provider Configuration](#oauth-provider-configuration)
 7. [File Storage](#file-storage)
 8. [UI Components](#ui-components)
-9. [Styling with Tailwind CSS](#styling-with-tailwind-css)
-10. [Cloudflare Workers Deployment](#cloudflare-workers-deployment)
-11. [Environment Variables](#environment-variables)
-12. [Development Workflow](#development-workflow)
-13. [Complete Wiring Guide](#complete-wiring-guide)
+9. [Cloudflare Workers Deployment](#cloudflare-workers-deployment)
+10. [Environment Variables](#environment-variables)
+11. [Development Workflow](#development-workflow)
+12. [Complete Wiring Guide](#complete-wiring-guide)
 
 ---
 
@@ -71,7 +70,7 @@ A comprehensive reference for building production-ready web applications using T
 | Backend | Convex | Serverless functions, database, file storage |
 | Auth | Better Auth + Convex | OAuth/SSO with session persistence |
 | UI | shadcn/ui + Base UI | Accessible, customizable components |
-| Styling | Tailwind CSS v4 | Utility-first CSS |
+| Styling | Tailwind CSS v4 | Utility-first CSS (CSS-first config) |
 | Deployment | Cloudflare Workers | Edge-first serverless hosting |
 
 ---
@@ -128,32 +127,18 @@ project-root/
 │
 ├── .env.local                        # Development environment
 ├── .env.production                   # Production environment
-├── app.config.ts                     # TanStack Start config
-├── vite.config.ts                    # Vite configuration
+├── vite.config.ts                    # Vite + TanStack Start config
 ├── wrangler.jsonc                    # Cloudflare Workers config
 ├── tsconfig.json                     # TypeScript config
 ├── components.json                   # shadcn/ui config
-├── package.json                      # Dependencies
-└── tailwind.config.ts                # Tailwind config (if needed)
+└── package.json                      # Dependencies
 ```
 
 ---
 
 ## TanStack Start Setup
 
-### App Configuration
-
-**`app.config.ts`**
-```typescript
-import { defineConfig } from "@tanstack/react-start/config";
-import viteTsConfigPaths from "vite-tsconfig-paths";
-
-export default defineConfig({
-  vite: {
-    plugins: [viteTsConfigPaths()],
-  },
-});
-```
+TanStack Start (v1.121.0+) is configured as a Vite plugin—no separate `app.config.ts` needed. See [Vite Configuration](#vite-configuration) for the full setup.
 
 ### Router Configuration
 
@@ -778,6 +763,8 @@ function FileUploader() {
 
 ### shadcn/ui Configuration
 
+shadcn/ui supports Tailwind v4's CSS-first approach. Note the empty `config` field—no JavaScript config file is needed.
+
 **`components.json`**
 ```json
 {
@@ -854,11 +841,9 @@ function ExampleForm() {
 }
 ```
 
----
+### Global Styles (Tailwind v4)
 
-## Styling with Tailwind CSS
-
-### Global Styles
+Tailwind CSS v4 uses a CSS-first configuration approach—no `tailwind.config.js` file needed. All configuration is done directly in your CSS file using `@import` and `@theme` directives. The `@tailwindcss/vite` plugin handles everything automatically.
 
 **`src/styles.css`**
 ```css
@@ -949,6 +934,11 @@ body {
 ```
 
 ### Vite Configuration
+
+This is the central configuration file for TanStack Start (v1.121.0+). Key notes:
+- **TanStack Start** is now a Vite plugin—no `app.config.ts` needed
+- **Plugin order matters**: `tanstackStart()` must come before `viteReact()`
+- **Tailwind v4** uses `@tailwindcss/vite` instead of PostCSS
 
 **`vite.config.ts`**
 ```typescript
@@ -1240,6 +1230,8 @@ bun run deploy
   "lucide-react": "^0.x"
 }
 ```
+
+> **Note:** Tailwind v4 with Vite does not require `postcss` or `autoprefixer`—the Vite plugin handles everything including vendor prefixing via Lightning CSS.
 
 ### Build/Deploy Dependencies
 
