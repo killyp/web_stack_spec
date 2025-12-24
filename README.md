@@ -109,59 +109,60 @@ bun run dev              # Start development server
 
 ```
 project-root/
-├── src/                              # Frontend application
-│   ├── components/                   # React components
-│   │   ├── ui/                       # shadcn/ui components
-│   │   │   ├── button.tsx
-│   │   │   ├── card.tsx
-│   │   │   ├── input.tsx
-│   │   │   ├── select.tsx
-│   │   │   ├── dropdown-menu.tsx
-│   │   │   └── ...
-│   │   ├── app-layout.tsx            # Main layout wrapper
-│   │   └── [feature-components].tsx
+├── app/                                  # Application root
+│   ├── src/                              # Frontend application
+│   │   ├── components/                   # React components
+│   │   │   ├── ui/                       # shadcn/ui components
+│   │   │   │   ├── button.tsx
+│   │   │   │   ├── card.tsx
+│   │   │   │   ├── input.tsx
+│   │   │   │   ├── select.tsx
+│   │   │   │   ├── dropdown-menu.tsx
+│   │   │   │   └── ...
+│   │   │   ├── app-layout.tsx            # Main layout wrapper
+│   │   │   └── [feature-components].tsx
+│   │   │
+│   │   ├── lib/                          # Shared utilities
+│   │   │   ├── auth-client.ts            # Better Auth client
+│   │   │   ├── auth-server.ts            # Better Auth server handler
+│   │   │   └── utils.ts                  # Helper functions (cn, etc.)
+│   │   │
+│   │   ├── routes/                       # File-based routes
+│   │   │   ├── __root.tsx                # Root layout with providers
+│   │   │   ├── index.tsx                 # Home page (/)
+│   │   │   ├── login.tsx                 # Auth page (/login)
+│   │   │   ├── api/
+│   │   │   │   └── auth/
+│   │   │   │       └── $.tsx             # Auth catch-all handler
+│   │   │   └── [page].tsx                # Additional pages
+│   │   │
+│   │   ├── router.tsx                    # Router configuration
+│   │   ├── styles.css                    # Global styles + Tailwind
+│   │   └── routeTree.gen.ts              # Auto-generated route tree
 │   │
-│   ├── lib/                          # Shared utilities
-│   │   ├── auth-client.ts            # Better Auth client
-│   │   ├── auth-server.ts            # Better Auth server handler
-│   │   └── utils.ts                  # Helper functions (cn, etc.)
+│   ├── convex/                           # Backend (Convex)
+│   │   ├── _generated/                   # Auto-generated types
+│   │   │   ├── api.d.ts
+│   │   │   ├── api.js
+│   │   │   ├── dataModel.d.ts
+│   │   │   └── server.d.ts
+│   │   │
+│   │   ├── convex.config.ts              # App configuration + plugins
+│   │   ├── schema.ts                     # Database schema
+│   │   ├── auth.ts                       # Better Auth setup
+│   │   ├── auth.config.ts                # Auth configuration
+│   │   ├── http.ts                       # HTTP route handlers
+│   │   └── [feature].ts                  # Feature-specific functions
 │   │
-│   ├── routes/                       # File-based routes
-│   │   ├── __root.tsx                # Root layout with providers
-│   │   ├── index.tsx                 # Home page (/)
-│   │   ├── login.tsx                 # Auth page (/login)
-│   │   ├── api/
-│   │   │   └── auth/
-│   │   │       └── $.tsx             # Auth catch-all handler
-│   │   └── [page].tsx                # Additional pages
+│   ├── public/                           # Static assets
 │   │
-│   ├── router.tsx                    # Router configuration
-│   ├── styles.css                    # Global styles + Tailwind
-│   └── routeTree.gen.ts              # Auto-generated route tree
-│
-├── convex/                           # Backend (Convex)
-│   ├── _generated/                   # Auto-generated types
-│   │   ├── api.d.ts
-│   │   ├── api.js
-│   │   ├── dataModel.d.ts
-│   │   └── server.d.ts
-│   │
-│   ├── convex.config.ts              # App configuration + plugins
-│   ├── schema.ts                     # Database schema
-│   ├── auth.ts                       # Better Auth setup
-│   ├── auth.config.ts                # Auth configuration
-│   ├── http.ts                       # HTTP route handlers
-│   └── [feature].ts                  # Feature-specific functions
-│
-├── public/                           # Static assets
-│
-├── .env.local                        # Development environment
-├── .env.production                   # Production environment
-├── vite.config.ts                    # Vite + TanStack Start config
-├── wrangler.toml                     # Cloudflare Workers config
-├── tsconfig.json                     # TypeScript config
-├── components.json                   # shadcn/ui config
-└── package.json                      # Dependencies
+│   ├── .env.local                        # Development environment
+│   ├── .env.production                   # Production environment
+│   ├── vite.config.ts                    # Vite + TanStack Start config
+│   ├── wrangler.toml                     # Cloudflare Workers config
+│   ├── tsconfig.json                     # TypeScript config
+│   ├── components.json                   # shadcn/ui config
+│   └── package.json                      # Dependencies
 ```
 
 ---
@@ -172,7 +173,7 @@ TanStack Start (v1.121.0+) is configured as a Vite plugin—no separate `app.con
 
 ### Router Configuration
 
-**`src/router.tsx`**
+**`app/src/router.tsx`**
 ```typescript
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
@@ -189,7 +190,7 @@ export const getRouter = () => {
 
 ### Root Layout with Providers
 
-**`src/routes/__root.tsx`**
+**`app/src/routes/__root.tsx`**
 ```typescript
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
@@ -247,7 +248,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
 ### Route Examples
 
-**`src/routes/index.tsx`** (Protected Home Page)
+**`app/src/routes/index.tsx`** (Protected Home Page)
 ```typescript
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSession } from "../lib/auth-client";
@@ -283,7 +284,7 @@ function HomePage() {
 }
 ```
 
-**`src/routes/login.tsx`** (Login Page)
+**`app/src/routes/login.tsx`** (Login Page)
 ```typescript
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSession, signIn } from "../lib/auth-client";
@@ -320,7 +321,7 @@ function LoginPage() {
 }
 ```
 
-**`src/routes/api/auth/$.tsx`** (Auth Handler)
+**`app/src/routes/api/auth/$.tsx`** (Auth Handler)
 ```typescript
 import { createAPIFileRoute } from "@tanstack/react-start/api";
 import { authHandler } from "../../../lib/auth-server";
@@ -337,7 +338,7 @@ export const APIRoute = createAPIFileRoute("/api/auth/$")({
 
 ### App Configuration with Plugins
 
-**`convex/convex.config.ts`**
+**`app/convex/convex.config.ts`**
 ```typescript
 import { defineApp } from "convex/server";
 import betterAuth from "@convex-dev/better-auth/convex.config";
@@ -350,7 +351,7 @@ export default app;
 
 ### Database Schema
 
-**`convex/schema.ts`**
+**`app/convex/schema.ts`**
 ```typescript
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
@@ -376,7 +377,7 @@ export default defineSchema({
 
 ### HTTP Routes
 
-**`convex/http.ts`**
+**`app/convex/http.ts`**
 ```typescript
 import { httpRouter } from "convex/server";
 import { authComponent } from "./auth";
@@ -391,7 +392,7 @@ export default http;
 
 ### Convex Functions
 
-**`convex/[feature].ts`** (Example)
+**`app/convex/[feature].ts`** (Example)
 ```typescript
 import { v } from "convex/values";
 import { mutation, query, action } from "./_generated/server";
@@ -455,7 +456,7 @@ export const processExternal = action({
 
 ### Auth Component Setup
 
-**`convex/auth.ts`**
+**`app/convex/auth.ts`**
 ```typescript
 import { betterAuth } from "better-auth";
 import { convex } from "@convex-dev/better-auth";
@@ -491,7 +492,7 @@ export const createAuth = (ctx: any) => {
 };
 ```
 
-**`convex/auth.config.ts`**
+**`app/convex/auth.config.ts`**
 ```typescript
 import { getAuthConfigProvider } from "@convex-dev/better-auth";
 
@@ -500,7 +501,7 @@ export const authConfig = getAuthConfigProvider();
 
 ### Auth Client
 
-**`src/lib/auth-client.ts`**
+**`app/src/lib/auth-client.ts`**
 ```typescript
 import { createAuthClient } from "better-auth/react";
 import { convexClient } from "@convex-dev/better-auth/client";
@@ -514,7 +515,7 @@ export const { signIn, signOut, useSession } = authClient;
 
 ### Auth Server Handler
 
-**`src/lib/auth-server.ts`**
+**`app/src/lib/auth-server.ts`**
 ```typescript
 import { convexBetterAuthReactStart } from "@convex-dev/better-auth/react-start";
 
@@ -621,7 +622,7 @@ export const createItem = mutation({
 
 ### Backend: File Operations
 
-**`convex/files.ts`**
+**`app/convex/files.ts`**
 ```typescript
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
@@ -795,7 +796,7 @@ function FileUploader() {
 
 shadcn/ui supports Tailwind v4's CSS-first approach. Note the empty `config` field—no JavaScript config file is needed.
 
-**`components.json`**
+**`app/components.json`**
 ```json
 {
   "$schema": "https://ui.shadcn.com/schema.json",
@@ -804,7 +805,7 @@ shadcn/ui supports Tailwind v4's CSS-first approach. Note the empty `config` fie
   "tsx": true,
   "tailwind": {
     "config": "",
-    "css": "src/styles.css",
+    "css": "app/src/styles.css",
     "baseColor": "neutral",
     "cssVariables": true,
     "prefix": ""
@@ -838,7 +839,7 @@ bunx shadcn@latest add dropdown-menu
 
 ### Utility Function
 
-**`src/lib/utils.ts`**
+**`app/src/lib/utils.ts`**
 ```typescript
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -875,7 +876,7 @@ function ExampleForm() {
 
 Tailwind CSS v4 uses a CSS-first configuration approach—no `tailwind.config.js` file needed. All configuration is done directly in your CSS file using `@import` and `@theme` directives. The `@tailwindcss/vite` plugin handles everything automatically.
 
-**`src/styles.css`**
+**`app/src/styles.css`**
 ```css
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -939,7 +940,7 @@ body {
 
 ### Wrangler Configuration
 
-**`wrangler.toml`**
+**`app/wrangler.toml`**
 ```toml
 name = "your-app-name"
 main = "@tanstack/react-start/server-entry"
@@ -965,7 +966,7 @@ This is the central configuration file for TanStack Start (v1.121.0+). Key notes
 - **Plugin order matters**: `tanstackStart()` must come before `viteReact()`
 - **Tailwind v4** uses `@tailwindcss/vite` instead of PostCSS
 
-**`vite.config.ts`**
+**`app/vite.config.ts`**
 ```typescript
 import { defineConfig } from "vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
@@ -1013,7 +1014,7 @@ wrangler deploy            # Deploy to Cloudflare Workers
 
 ### Local Development
 
-**`.env.local`**
+**`app/.env.local`**
 ```bash
 # Convex Development
 CONVEX_DEPLOYMENT=dev:your-dev-deployment
@@ -1024,7 +1025,7 @@ VITE_SITE_URL=http://localhost:3000
 
 ### Production
 
-**`.env.production`**
+**`app/.env.production`**
 ```bash
 # Convex Production
 VITE_CONVEX_URL=https://your-prod-deployment.convex.cloud
