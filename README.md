@@ -6,18 +6,48 @@ A comprehensive reference for building production-ready web applications using T
 
 ## Table of Contents
 
-1. [Architecture Overview](#architecture-overview)
-2. [Project Structure](#project-structure)
-3. [TanStack Start Setup](#tanstack-start-setup)
-4. [Convex Backend](#convex-backend)
-5. [Better Auth Integration](#better-auth-integration)
-6. [OAuth Provider Configuration](#oauth-provider-configuration)
-7. [File Storage](#file-storage)
-8. [UI Components](#ui-components)
-9. [Cloudflare Workers Deployment](#cloudflare-workers-deployment)
-10. [Environment Variables](#environment-variables)
-11. [Development Workflow](#development-workflow)
-12. [Complete Wiring Guide](#complete-wiring-guide)
+1. [Quick Start](#quick-start)
+2. [Architecture Overview](#architecture-overview)
+3. [Project Structure](#project-structure)
+4. [TanStack Start Setup](#tanstack-start-setup)
+5. [Convex Backend](#convex-backend)
+6. [Better Auth Integration](#better-auth-integration)
+7. [OAuth Provider Configuration](#oauth-provider-configuration)
+8. [File Storage](#file-storage)
+9. [UI Components](#ui-components)
+10. [Cloudflare Workers Deployment](#cloudflare-workers-deployment)
+11. [Environment Variables](#environment-variables)
+12. [Development Workflow](#development-workflow)
+13. [Complete Wiring Guide](#complete-wiring-guide)
+
+---
+
+## Quick Start
+
+Bootstrap a new project with shadcn/ui, TanStack Start, Base UI, and Tailwind v4:
+
+```bash
+bunx --bun shadcn@latest create my-app \
+  --preset "https://ui.shadcn.com/init?base=base&style=default&baseColor=neutral&iconLibrary=lucide&template=start" \
+  --template start
+```
+
+This creates a fully configured TanStack Start project with:
+- **Base UI** as the component primitive library
+- **Tailwind CSS v4** with CSS-first configuration
+- **Lucide** icons
+- **Inter** font (via Fontsource)
+
+After creation:
+
+```bash
+cd my-app
+bun install
+npx convex dev --once    # Initialize Convex
+bun run dev              # Start development server
+```
+
+> **Customize the preset**: Visit [ui.shadcn.com](https://ui.shadcn.com) and configure your preferences, then copy the preset URL.
 
 ---
 
