@@ -444,7 +444,7 @@ export const authComponent = new BetterAuth(components.betterAuth, {
 // Create Better Auth instance (used in actions/HTTP handlers)
 export const createAuth = (ctx: any) => {
   return betterAuth({
-    baseURL: process.env.SITE_URL!,
+    baseURL: process.env.BETTER_AUTH_BASE_URL!,
     secret: process.env.BETTER_AUTH_SECRET,
     socialProviders: {
       microsoft: {
@@ -547,7 +547,7 @@ export const createItem = mutation({
    npx convex env set MICROSOFT_CLIENT_ID "your-client-id"
    npx convex env set MICROSOFT_CLIENT_SECRET "your-client-secret"
    npx convex env set MICROSOFT_TENANT_ID "your-tenant-id" # Optional
-   npx convex env set SITE_URL "https://your-domain.com"
+   npx convex env set BETTER_AUTH_BASE_URL "https://your-domain.com"
    npx convex env set BETTER_AUTH_SECRET "your-random-secret-32-chars-min"
    ```
 
@@ -1014,7 +1014,7 @@ Set these via CLI or Convex Dashboard:
 ```bash
 # Authentication
 npx convex env set BETTER_AUTH_SECRET "random-32-char-secret"
-npx convex env set SITE_URL "https://your-domain.com"
+npx convex env set BETTER_AUTH_BASE_URL "https://your-domain.com"
 
 # Microsoft OAuth
 npx convex env set MICROSOFT_CLIENT_ID "..."
