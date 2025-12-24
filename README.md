@@ -158,7 +158,7 @@ project-root/
 ├── .env.local                        # Development environment
 ├── .env.production                   # Production environment
 ├── vite.config.ts                    # Vite + TanStack Start config
-├── wrangler.jsonc                    # Cloudflare Workers config
+├── wrangler.toml                     # Cloudflare Workers config
 ├── tsconfig.json                     # TypeScript config
 ├── components.json                   # shadcn/ui config
 └── package.json                      # Dependencies
@@ -939,28 +939,23 @@ body {
 
 ### Wrangler Configuration
 
-**`wrangler.jsonc`**
-```jsonc
-{
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "your-app-name",
-  "main": "@tanstack/react-start/server-entry",
-  "compatibility_date": "2025-01-01",
-  "compatibility_flags": ["nodejs_compat"],
-  "routes": [
-    {
-      "pattern": "your-domain.com",
-      "custom_domain": true
-    }
-  ],
-  "observability": {
-    "enabled": true,
-    "logs": {
-      "enabled": true,
-      "invocation_logs": true
-    }
-  }
-}
+**`wrangler.toml`**
+```toml
+name = "your-app-name"
+main = "@tanstack/react-start/server-entry"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[routes]]
+pattern = "your-domain.com"
+custom_domain = true
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
 ```
 
 ### Vite Configuration
@@ -1008,7 +1003,7 @@ wrangler deploy            # Deploy to Cloudflare Workers
 ### Custom Domain Setup
 
 1. Add domain to Cloudflare (if not already)
-2. In `wrangler.jsonc`, add route with `custom_domain: true`
+2. In `wrangler.toml`, add route with `custom_domain = true`
 3. Deploy with `wrangler deploy`
 4. Cloudflare automatically provisions SSL
 
