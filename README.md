@@ -1229,13 +1229,15 @@ bun run deploy
 
 ```json
 {
-  "@tanstack/react-start": "^1.x",
-  "@tanstack/react-router": "^1.x",
-  "@tanstack/react-query": "^5.x",
-  "convex": "^1.x",
-  "@convex-dev/better-auth": "^0.x",
-  "@convex-dev/react-query": "^0.x",
-  "better-auth": "^1.x",
+  "@tanstack/react-start": "^1.142.x",
+  "@tanstack/react-router": "^1.141.x",
+  "@tanstack/react-query": "^5.90.x",
+  "@tanstack/router-plugin": "^1.142.x",
+  "@tanstack/react-router-ssr-query": "^1.141.x",
+  "convex": "^1.31.x",
+  "@convex-dev/better-auth": "^0.10.x",
+  "@convex-dev/react-query": "^0.1.x",
+  "better-auth": "^1.4.x",
   "react": "^19.x",
   "react-dom": "^19.x"
 }
@@ -1245,14 +1247,16 @@ bun run deploy
 
 ```json
 {
-  "tailwindcss": "^4.x",
-  "@tailwindcss/vite": "^4.x",
-  "shadcn": "^3.x",
+  "tailwindcss": "^4.1.x",
+  "@tailwindcss/vite": "^4.1.x",
+  "shadcn": "^3.6.x",
   "@base-ui/react": "^1.x",
-  "class-variance-authority": "^0.x",
+  "class-variance-authority": "^0.7.x",
   "clsx": "^2.x",
-  "tailwind-merge": "^2.x",
-  "lucide-react": "^0.x"
+  "tailwind-merge": "^3.4.x",
+  "lucide-react": "^0.562.x",
+  "tw-animate-css": "^1.4.x",
+  "@fontsource-variable/inter": "^5.x"
 }
 ```
 
@@ -1262,11 +1266,12 @@ bun run deploy
 
 ```json
 {
-  "@cloudflare/vite-plugin": "^1.x",
-  "wrangler": "^4.x",
-  "vite": "^6.x",
-  "@vitejs/plugin-react": "^4.x",
-  "typescript": "^5.x"
+  "@cloudflare/vite-plugin": "^1.19.x",
+  "wrangler": "^4.56.x",
+  "vite": "^7.3.x",
+  "@vitejs/plugin-react": "^5.1.x",
+  "vite-tsconfig-paths": "^5.1.x",
+  "typescript": "^5.9.x"
 }
 ```
 
