@@ -171,51 +171,97 @@ project-root/
 
 TanStack Start (v1.121.0+) is configured as a Vite plugin—no separate `app.config.ts` needed. See [Vite Configuration](#vite-configuration) for the full setup.
 
-### Router Configuration
+### Router Configuration (SSR Auth)
+
+The router is configured with `routerWithQueryClient` for SSR integration and `ConvexQueryClient` with `expectAuth: true` for authenticated server-side queries.
 
 **`app/src/router.tsx`**
 ```typescript
 import { createRouter } from "@tanstack/react-router";
+import { QueryClient } from "@tanstack/react-query";
+import { routerWithQueryClient } from "@tanstack/react-router-with-query";
+import { ConvexQueryClient } from "@convex-dev/react-query";
+import { ConvexProvider } from "convex/react";
 import { routeTree } from "./routeTree.gen";
 
-export const getRouter = () => {
-  const router = createRouter({
-    routeTree,
-    scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+export function getRouter() {
+  const convexUrl = import.meta.env.VITE_CONVEX_URL!;
+  if (!convexUrl) {
+    throw new Error("VITE_CONVEX_URL is not set");
+  }
+
+  // Create ConvexQueryClient with expectAuth: true for SSR auth support
+  const convexQueryClient = new ConvexQueryClient(convexUrl, {
+    expectAuth: true,
   });
+
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        queryKeyHashFn: convexQueryClient.hashFn(),
+        queryFn: convexQueryClient.queryFn(),
+      },
+    },
+  });
+
+  convexQueryClient.connect(queryClient);
+
+  const router = routerWithQueryClient(
+    createRouter({
+      routeTree,
+      defaultPreload: "intent",
+      context: { queryClient, convexQueryClient },
+      scrollRestoration: true,
+      Wrap: ({ children }) => (
+        <ConvexProvider client={convexQueryClient.convexClient}>
+          {children}
+        </ConvexProvider>
+      ),
+    }),
+    queryClient,
+  );
+
   return router;
-};
+}
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: ReturnType<typeof getRouter>;
+  }
+}
 ```
 
-### Root Layout with Providers
+### Root Layout with SSR Auth
+
+The root route uses `createRootRouteWithContext` and `beforeLoad` to fetch the auth token during server-side rendering, enabling authenticated Convex queries before the page reaches the browser.
 
 **`app/src/routes/__root.tsx`**
 ```typescript
-import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
+/// <reference types="vite/client" />
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRouteWithContext,
+  useRouteContext,
+} from "@tanstack/react-router";
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
-import { ConvexQueryClient } from "@convex-dev/react-query";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ConvexReactClient } from "convex/react";
-import { authClient } from "../lib/auth-client";
+import { createServerFn } from "@tanstack/react-start";
+import type { ConvexQueryClient } from "@convex-dev/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import appCss from "../styles.css?url";
+import { authClient } from "../lib/auth-client";
+import { getToken } from "../lib/auth-server";
 
-// Initialize Convex client
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL);
-
-// Connect Convex to TanStack Query
-const convexQueryClient = new ConvexQueryClient(convex);
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      queryKeyHashFn: convexQueryClient.hashFn(),
-      queryFn: convexQueryClient.queryFn(),
-    },
-  },
+// Server function to get auth token for SSR
+const getAuth = createServerFn({ method: "GET" }).handler(async () => {
+  return await getToken();
 });
-convexQueryClient.connect(queryClient);
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+  convexQueryClient: ConvexQueryClient;
+}>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -224,8 +270,39 @@ export const Route = createRootRoute({
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
-  shellComponent: RootDocument,
+
+  beforeLoad: async (ctx) => {
+    const token = await getAuth();
+
+    // During SSR only, set the auth token for authenticated queries
+    if (token) {
+      ctx.context.convexQueryClient.serverHttpClient?.setAuth(token);
+    }
+
+    return {
+      isAuthenticated: !!token,
+      token,
+    };
+  },
+
+  component: RootComponent,
 });
+
+function RootComponent() {
+  const context = useRouteContext({ from: Route.id });
+
+  return (
+    <ConvexBetterAuthProvider
+      client={context.convexQueryClient.convexClient}
+      authClient={authClient}
+      initialToken={context.token}
+    >
+      <RootDocument>
+        <Outlet />
+      </RootDocument>
+    </ConvexBetterAuthProvider>
+  );
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
@@ -234,11 +311,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <QueryClientProvider client={queryClient}>
-          <ConvexBetterAuthProvider client={convex} authClient={authClient}>
-            {children}
-          </ConvexBetterAuthProvider>
-        </QueryClientProvider>
+        {children}
         <Scripts />
       </body>
     </html>
@@ -246,33 +319,62 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 }
 ```
 
+> [!WARNING]
+> **Sign-Out with `expectAuth: true`**
+> 
+> When using `expectAuth: true`, signing out requires a page reload to prevent errors from queries running before auth is ready on re-login:
+> ```typescript
+> await authClient.signOut({
+>   fetchOptions: {
+>     onSuccess: () => location.reload(),
+>   },
+> });
+> ```
+
+### Server Middleware for Protected Routes
+
+Following [Better Auth TanStack Start recommendations](https://www.better-auth.com/docs/integrations/tanstack#middleware), use server middleware to protect routes.
+
+**`app/src/lib/middleware.ts`**
+```typescript
+import { redirect } from "@tanstack/react-router";
+import { createMiddleware } from "@tanstack/react-start";
+import { getToken } from "./auth-server";
+
+/**
+ * Server middleware that protects routes requiring authentication.
+ * Apply to any route via `server: { middleware: [authMiddleware] }`.
+ */
+export const authMiddleware = createMiddleware().server(async ({ next }) => {
+  const token = await getToken();
+
+  if (!token) {
+    throw redirect({ to: "/login" });
+  }
+
+  return await next();
+});
+```
+
 ### Route Examples
 
 **`app/src/routes/index.tsx`** (Protected Home Page)
 ```typescript
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useSession } from "../lib/auth-client";
-import { useEffect } from "react";
+import { authMiddleware } from "../lib/middleware";
 
 export const Route = createFileRoute("/")({
+  server: {
+    middleware: [authMiddleware],
+  },
   component: HomePage,
 });
 
 function HomePage() {
   const { data: session, isPending } = useSession();
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!isPending && !session?.user) {
-      navigate({ to: "/login" });
-    }
-  }, [session, isPending, navigate]);
-
-  if (isPending) {
-    return <div>Loading...</div>;
-  }
-
-  if (!session?.user) {
+  if (isPending || !session?.user) {
     return null;
   }
 
@@ -307,7 +409,7 @@ function LoginPage() {
 
   const handleLogin = () => {
     signIn.social({
-      provider: "microsoft", // or "google", "github", etc.
+      provider: "microsoft",
       callbackURL: "/",
     });
   };
