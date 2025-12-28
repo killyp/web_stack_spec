@@ -321,14 +321,18 @@ function LoginPage() {
 }
 ```
 
-**`app/src/routes/api/auth/$.tsx`** (Auth Handler)
+**`app/src/routes/api/auth/$.ts`** (Auth Handler)
 ```typescript
-import { createAPIFileRoute } from "@tanstack/react-start/api";
-import { authHandler } from "../../../lib/auth-server";
+import { createFileRoute } from "@tanstack/react-router";
+import { handler } from "../../../lib/auth-server";
 
-export const APIRoute = createAPIFileRoute("/api/auth/$")({
-  GET: ({ request }) => authHandler({ request }),
-  POST: ({ request }) => authHandler({ request }),
+export const Route = createFileRoute("/api/auth/$")({
+  server: {
+    handlers: {
+      GET: ({ request }) => handler(request),
+      POST: ({ request }) => handler(request),
+    },
+  },
 });
 ```
 
@@ -380,12 +384,12 @@ export default defineSchema({
 **`app/convex/http.ts`**
 ```typescript
 import { httpRouter } from "convex/server";
-import { authComponent } from "./auth";
+import { authComponent, createAuth } from "./auth";
 
 const http = httpRouter();
 
-// Register Better Auth routes
-authComponent.registerRoutes(http, "/api/auth");
+// Register Better Auth routes (pass createAuth function, not path string)
+authComponent.registerRoutes(http, createAuth);
 
 export default http;
 ```
@@ -458,25 +462,21 @@ export const processExternal = action({
 
 **`app/convex/auth.ts`**
 ```typescript
-import { betterAuth } from "better-auth";
-import { convex } from "@convex-dev/better-auth";
-import { BetterAuth } from "@convex-dev/better-auth";
+import { betterAuth } from "better-auth/minimal";
+import { createClient, type GenericCtx } from "@convex-dev/better-auth";
+import { convex } from "@convex-dev/better-auth/plugins";
+import authConfig from "./auth.config";
 import { components } from "./_generated/api";
-import { authConfig } from "./auth.config";
+import type { DataModel } from "./_generated/dataModel";
 
-// Create auth component instance
-export const authComponent = new BetterAuth(components.betterAuth, {
-  trustedOrigins: [
-    "http://localhost:3000",
-    "https://your-domain.com",
-  ],
-});
+// Create auth component instance with DataModel generic for type safety
+export const authComponent = createClient<DataModel>(components.betterAuth);
 
-// Create Better Auth instance (used in actions/HTTP handlers)
-export const createAuth = (ctx: any) => {
+// Create Better Auth instance (used in HTTP handlers)
+export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
     baseURL: process.env.BETTER_AUTH_BASE_URL!,
-    secret: process.env.BETTER_AUTH_SECRET,
+    database: authComponent.adapter(ctx),
     socialProviders: {
       microsoft: {
         clientId: process.env.MICROSOFT_CLIENT_ID!,
@@ -494,9 +494,12 @@ export const createAuth = (ctx: any) => {
 
 **`app/convex/auth.config.ts`**
 ```typescript
-import { getAuthConfigProvider } from "@convex-dev/better-auth";
+import { getAuthConfigProvider } from "@convex-dev/better-auth/auth-config";
+import type { AuthConfig } from "convex/server";
 
-export const authConfig = getAuthConfigProvider();
+export default {
+  providers: [getAuthConfigProvider()],
+} satisfies AuthConfig;
 ```
 
 ### Auth Client
@@ -504,7 +507,7 @@ export const authConfig = getAuthConfigProvider();
 **`app/src/lib/auth-client.ts`**
 ```typescript
 import { createAuthClient } from "better-auth/react";
-import { convexClient } from "@convex-dev/better-auth/client";
+import { convexClient } from "@convex-dev/better-auth/client/plugins";
 
 export const authClient = createAuthClient({
   plugins: [convexClient()],
@@ -519,9 +522,15 @@ export const { signIn, signOut, useSession } = authClient;
 ```typescript
 import { convexBetterAuthReactStart } from "@convex-dev/better-auth/react-start";
 
-export const { authHandler } = convexBetterAuthReactStart({
-  convexUrl: import.meta.env.VITE_CONVEX_URL,
-  convexSiteUrl: import.meta.env.VITE_CONVEX_SITE_URL,
+export const {
+  handler,
+  getToken,
+  fetchAuthQuery,
+  fetchAuthMutation,
+  fetchAuthAction,
+} = convexBetterAuthReactStart({
+  convexUrl: import.meta.env.VITE_CONVEX_URL!,
+  convexSiteUrl: import.meta.env.VITE_CONVEX_SITE_URL!,
 });
 ```
 
