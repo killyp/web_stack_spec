@@ -331,33 +331,50 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 > });
 > ```
 
+### Server Middleware for Protected Routes
+
+Following [Better Auth TanStack Start recommendations](https://www.better-auth.com/docs/integrations/tanstack#middleware), use server middleware to protect routes.
+
+**`app/src/lib/middleware.ts`**
+```typescript
+import { redirect } from "@tanstack/react-router";
+import { createMiddleware } from "@tanstack/react-start";
+import { getToken } from "./auth-server";
+
+/**
+ * Server middleware that protects routes requiring authentication.
+ * Apply to any route via `server: { middleware: [authMiddleware] }`.
+ */
+export const authMiddleware = createMiddleware().server(async ({ next }) => {
+  const token = await getToken();
+
+  if (!token) {
+    throw redirect({ to: "/login" });
+  }
+
+  return await next();
+});
+```
+
 ### Route Examples
 
 **`app/src/routes/index.tsx`** (Protected Home Page)
 ```typescript
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useSession } from "../lib/auth-client";
-import { useEffect } from "react";
+import { authMiddleware } from "../lib/middleware";
 
 export const Route = createFileRoute("/")({
+  server: {
+    middleware: [authMiddleware],
+  },
   component: HomePage,
 });
 
 function HomePage() {
   const { data: session, isPending } = useSession();
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!isPending && !session?.user) {
-      navigate({ to: "/login" });
-    }
-  }, [session, isPending, navigate]);
-
-  if (isPending) {
-    return <div>Loading...</div>;
-  }
-
-  if (!session?.user) {
+  if (isPending || !session?.user) {
     return null;
   }
 
@@ -392,7 +409,7 @@ function LoginPage() {
 
   const handleLogin = () => {
     signIn.social({
-      provider: "microsoft", // or "google", "github", etc.
+      provider: "microsoft",
       callbackURL: "/",
     });
   };
