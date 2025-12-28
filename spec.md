@@ -27,9 +27,7 @@ A comprehensive reference for building production-ready web applications using T
 Bootstrap a new project with shadcn/ui, TanStack Start, Base UI, and Tailwind v4:
 
 ```bash
-bunx --bun shadcn@latest create \
-  --preset "https://ui.shadcn.com/init?base=base&style=default&baseColor=neutral&iconLibrary=lucide&template=start" \
-  --template start
+bunx --bun shadcn@latest create --preset "https://ui.shadcn.com/init?base=base&style=vega&baseColor=neutral&theme=neutral&iconLibrary=lucide&font=inter&menuAccent=subtle&menuColor=default&radius=default&template=start" --template start
 ```
 
 This creates a fully configured TanStack Start project with:
