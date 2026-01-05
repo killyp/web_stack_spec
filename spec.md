@@ -12,13 +12,14 @@ A comprehensive reference for building production-ready web applications using T
 4. [TanStack Start Setup](#tanstack-start-setup)
 5. [Convex Backend](#convex-backend)
 6. [Better Auth Integration](#better-auth-integration)
-7. [OAuth Provider Configuration](#oauth-provider-configuration)
-8. [File Storage](#file-storage)
-9. [UI Components](#ui-components)
-10. [Cloudflare Workers Deployment](#cloudflare-workers-deployment)
-11. [Environment Variables](#environment-variables)
-12. [Development Workflow](#development-workflow)
-13. [Complete Wiring Guide](#complete-wiring-guide)
+7. [Authentication Methods](#authentication-methods)
+8. [OAuth Provider Configuration](#oauth-provider-configuration)
+9. [File Storage](#file-storage)
+10. [UI Components](#ui-components)
+11. [Cloudflare Workers Deployment](#cloudflare-workers-deployment)
+12. [Environment Variables](#environment-variables)
+13. [Development Workflow](#development-workflow)
+14. [Complete Wiring Guide](#complete-wiring-guide)
 
 ---
 
@@ -569,6 +570,10 @@ export const processExternal = action({
 
 ### Auth Component Setup
 
+Better Auth supports multiple authentication methods that can be used individually or combined:
+- **Email/Password**: Built-in credential authentication
+- **OAuth Providers**: Microsoft, Google, GitHub, etc.
+
 **`app/convex/auth.ts`**
 ```typescript
 import { betterAuth } from "better-auth/minimal";
@@ -585,17 +590,48 @@ export const authComponent = createClient<DataModel>(components.betterAuth);
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
     baseURL: process.env.SITE_URL!,
+    secret: process.env.BETTER_AUTH_SECRET!,
     database: authComponent.adapter(ctx),
-    socialProviders: {
-      microsoft: {
-        clientId: process.env.MICROSOFT_CLIENT_ID!,
-        clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
-        tenantId: process.env.MICROSOFT_TENANT_ID, // Optional for multi-tenant
-      },
-      // Add more providers as needed:
-      // google: { clientId: ..., clientSecret: ... },
-      // github: { clientId: ..., clientSecret: ... },
+    trustedOrigins: [
+      "http://localhost:3000",
+      "https://your-app.com",
+      "https://your-app-dev.workers.dev",
+    ],
+
+    // Option 1: Email/Password only
+    emailAndPassword: {
+      enabled: true,
     },
+
+    // Option 2: OAuth only (remove emailAndPassword above)
+    // socialProviders: {
+    //   microsoft: {
+    //     clientId: process.env.MICROSOFT_CLIENT_ID!,
+    //     clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+    //     tenantId: process.env.MICROSOFT_TENANT_ID,
+    //   },
+    // },
+
+    // Option 3: Both Email/Password AND OAuth (recommended for flexibility)
+    socialProviders: {
+      // Microsoft Entra ID (Azure AD)
+      // microsoft: {
+      //   clientId: process.env.MICROSOFT_CLIENT_ID!,
+      //   clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+      //   tenantId: process.env.MICROSOFT_TENANT_ID, // Optional
+      // },
+      // Google OAuth
+      // google: {
+      //   clientId: process.env.GOOGLE_CLIENT_ID!,
+      //   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      // },
+      // GitHub OAuth
+      // github: {
+      //   clientId: process.env.GITHUB_CLIENT_ID!,
+      //   clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      // },
+    },
+
     plugins: [convex({ authConfig })],
   });
 };
@@ -665,6 +701,207 @@ export const createItem = mutation({
     // ... rest of handler
   },
 });
+```
+
+---
+
+## Authentication Methods
+
+### Email/Password Authentication
+
+Email/Password is the simplest authentication method—no external OAuth setup required.
+
+**Backend Configuration** (in `convex/auth.ts`):
+```typescript
+emailAndPassword: {
+  enabled: true,
+},
+```
+
+**Frontend: Sign Up**
+```typescript
+import { authClient } from "../lib/auth-client";
+
+// Create new account
+await authClient.signUp.email({
+  email: "user@example.com",
+  password: "securepassword123",
+  name: "User Name", // Optional
+});
+```
+
+**Frontend: Sign In**
+```typescript
+import { authClient } from "../lib/auth-client";
+
+// Sign in with credentials
+await authClient.signIn.email({
+  email: "user@example.com",
+  password: "securepassword123",
+});
+```
+
+**Example Login Page with Email/Password**
+```typescript
+import { authClient, useSession } from "../lib/auth-client";
+import { useState } from "react";
+
+function LoginPage() {
+  const { data: session } = useSession();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    try {
+      if (isSignUp) {
+        await authClient.signUp.email({ email, password, name });
+      } else {
+        await authClient.signIn.email({ email, password });
+      }
+      // Navigate to app after success
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {isSignUp && <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />}
+      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+      {error && <p className="error">{error}</p>}
+      <button type="submit">{isSignUp ? "Create Account" : "Sign In"}</button>
+      <button type="button" onClick={() => setIsSignUp(!isSignUp)}>
+        {isSignUp ? "Already have an account?" : "Need an account?"}
+      </button>
+    </form>
+  );
+}
+```
+
+### OAuth Authentication
+
+OAuth requires configuring external providers but provides a streamlined user experience.
+
+**Frontend: OAuth Sign In**
+```typescript
+import { signIn } from "../lib/auth-client";
+
+// Microsoft OAuth
+signIn.social({
+  provider: "microsoft",
+  callbackURL: "/",
+});
+
+// Google OAuth
+signIn.social({
+  provider: "google",
+  callbackURL: "/",
+});
+
+// GitHub OAuth
+signIn.social({
+  provider: "github",
+  callbackURL: "/",
+});
+```
+
+**Example Login Page with OAuth Buttons**
+```typescript
+import { signIn } from "../lib/auth-client";
+import { Button } from "@/components/ui/button";
+
+function OAuthLoginPage() {
+  return (
+    <div className="space-y-3">
+      <Button onClick={() => signIn.social({ provider: "microsoft", callbackURL: "/" })}>
+        Sign in with Microsoft
+      </Button>
+      <Button onClick={() => signIn.social({ provider: "google", callbackURL: "/" })}>
+        Sign in with Google
+      </Button>
+      <Button onClick={() => signIn.social({ provider: "github", callbackURL: "/" })}>
+        Sign in with GitHub
+      </Button>
+    </div>
+  );
+}
+```
+
+### Combined Authentication (Email/Password + OAuth)
+
+For maximum flexibility, enable both methods. Users can choose their preferred sign-in method.
+
+**Backend Configuration**:
+```typescript
+export const createAuth = (ctx: GenericCtx<DataModel>) => {
+  return betterAuth({
+    baseURL: process.env.SITE_URL!,
+    secret: process.env.BETTER_AUTH_SECRET!,
+    database: authComponent.adapter(ctx),
+
+    // Enable Email/Password
+    emailAndPassword: {
+      enabled: true,
+    },
+
+    // Enable OAuth providers
+    socialProviders: {
+      microsoft: {
+        clientId: process.env.MICROSOFT_CLIENT_ID!,
+        clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+      },
+      google: {
+        clientId: process.env.GOOGLE_CLIENT_ID!,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      },
+    },
+
+    plugins: [convex({ authConfig })],
+  });
+};
+```
+
+**Example Combined Login Page**:
+```typescript
+function CombinedLoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await authClient.signIn.email({ email, password });
+  };
+
+  return (
+    <div>
+      {/* Email/Password Form */}
+      <form onSubmit={handleEmailSignIn}>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <button type="submit">Sign in with Email</button>
+      </form>
+
+      <div className="divider">or continue with</div>
+
+      {/* OAuth Buttons */}
+      <div className="oauth-buttons">
+        <button onClick={() => signIn.social({ provider: "microsoft", callbackURL: "/" })}>
+          Microsoft
+        </button>
+        <button onClick={() => signIn.social({ provider: "google", callbackURL: "/" })}>
+          Google
+        </button>
+      </div>
+    </div>
+  );
+}
 ```
 
 ---
@@ -1164,18 +1401,6 @@ VITE_CONVEX_SITE_URL=https://your-deployment.convex.site
    - `VITE_CONVEX_SITE_URL` - Must match your Convex site URL
 
 Pushes to `main` automatically build and deploy. Preview URLs are generated for other branches.
-
-### Better Auth trustedOrigins
-
-In `convex/auth.ts`, configure `trustedOrigins` for all domains that can make auth requests:
-
-```typescript
-trustedOrigins: [
-    "http://localhost:3000",
-    "https://your-app.com",
-    "https://your-app.workers.dev",
-],
-```
 
 ### Variable Naming Convention
 
