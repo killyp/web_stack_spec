@@ -24,28 +24,20 @@ A comprehensive reference for building production-ready web applications using T
 
 ## Quick Start
 
-Bootstrap a new project with shadcn/ui, TanStack Start, Base UI, and Tailwind v4:
+Bootstrap a new project with shadcn/ui, TanStack Start, and Tailwind v4:
 
-```bash
-bunx --bun shadcn@latest create --preset "https://ui.shadcn.com/init?base=base&style=vega&baseColor=neutral&theme=neutral&iconLibrary=lucide&font=inter&menuAccent=subtle&menuColor=default&radius=default&template=start" --template start
-```
+**[Create your project at ui.shadcn.com/create](https://ui.shadcn.com/create)**
 
-This creates a fully configured TanStack Start project with:
-- **Base UI** as the component primitive library
-- **Tailwind CSS v4** with CSS-first configuration
-- **Lucide** icons
-- **Inter** font (via Fontsource)
+Configure your preferences (style, colors, icons, font) and follow the setup instructions.
 
 After creation:
 
 ```bash
 cd my-app
 bun install
-npx convex dev --once    # Initialize Convex
+bunx convex dev --once   # Initialize Convex
 bun run dev              # Start development server
 ```
-
-> **Customize the preset**: Visit [ui.shadcn.com](https://ui.shadcn.com) and configure your preferences, then copy the preset URL.
 
 ---
 
@@ -342,16 +334,23 @@ import { getToken } from "./auth-server";
 /**
  * Server middleware that protects routes requiring authentication.
  * Apply to any route via `server: { middleware: [authMiddleware] }`.
+ * Captures the original URL for post-login redirect.
  */
-export const authMiddleware = createMiddleware().server(async ({ next }) => {
-  const token = await getToken();
+export const authMiddleware = createMiddleware().server(
+  async ({ next, context }) => {
+    const token = await getToken();
 
-  if (!token) {
-    throw redirect({ to: "/login" });
+    if (!token) {
+      // Capture original destination for post-login redirect
+      throw redirect({
+        to: "/login",
+        search: { redirect: context.location.pathname },
+      });
+    }
+
+    return await next();
   }
-
-  return await next();
-});
+);
 ```
 
 ### Route Examples
@@ -391,24 +390,34 @@ import { useSession, signIn } from "../lib/auth-client";
 import { useEffect } from "react";
 import { Button } from "../components/ui/button";
 
+// Define search params for redirect
+type LoginSearch = { redirect?: string };
+
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>): LoginSearch => ({
+    redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+  }),
   component: LoginPage,
 });
 
 function LoginPage() {
   const { data: session, isPending } = useSession();
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
+
+  // Redirect to original destination (or home) after login
+  const redirectTo = redirect || "/";
 
   useEffect(() => {
     if (!isPending && session?.user) {
-      navigate({ to: "/" });
+      navigate({ to: redirectTo });
     }
-  }, [session, isPending, navigate]);
+  }, [session, isPending, navigate, redirectTo]);
 
   const handleLogin = () => {
     signIn.social({
       provider: "microsoft",
-      callbackURL: "/",
+      callbackURL: redirectTo,
     });
   };
 
@@ -575,7 +584,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth);
 // Create Better Auth instance (used in HTTP handlers)
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
-    baseURL: process.env.BETTER_AUTH_BASE_URL!,
+    baseURL: process.env.SITE_URL!,
     database: authComponent.adapter(ctx),
     socialProviders: {
       microsoft: {
@@ -684,11 +693,11 @@ export const createItem = mutation({
 
 4. **Set Environment Variables in Convex**
    ```bash
-   npx convex env set MICROSOFT_CLIENT_ID "your-client-id"
-   npx convex env set MICROSOFT_CLIENT_SECRET "your-client-secret"
-   npx convex env set MICROSOFT_TENANT_ID "your-tenant-id" # Optional
-   npx convex env set BETTER_AUTH_BASE_URL "https://your-domain.com"
-   npx convex env set BETTER_AUTH_SECRET "your-random-secret-32-chars-min"
+   bunx convex env set MICROSOFT_CLIENT_ID "your-client-id"
+   bunx convex env set MICROSOFT_CLIENT_SECRET "your-client-secret"
+   bunx convex env set MICROSOFT_TENANT_ID "your-tenant-id" # Optional
+   bunx convex env set SITE_URL "https://your-convex-site.convex.site"
+   bunx convex env set BETTER_AUTH_SECRET "your-random-secret-32-chars-min"
    ```
 
 ### Google OAuth
@@ -1098,71 +1107,74 @@ export default defineConfig({
 });
 ```
 
-### Deployment Commands
+### Deployment
+
+With GitHub CI/CD configured (see [Environment Variables](#environment-variables)):
 
 ```bash
-# Deploy everything
-bun run deploy
-
-# Or step by step:
-npx convex deploy          # Deploy Convex backend
-bun run build              # Build frontend
-wrangler deploy            # Deploy to Cloudflare Workers
+bunx convex deploy         # Deploy Convex backend
+git push origin main       # Triggers Cloudflare build + deploy
 ```
 
 ### Custom Domain Setup
 
 1. Add domain to Cloudflare (if not already)
 2. In `wrangler.toml`, add route with `custom_domain = true`
-3. Deploy with `wrangler deploy`
+3. Push to trigger CI/CD deployment
 4. Cloudflare automatically provisions SSL
 
 ---
 
 ## Environment Variables
 
-### Local Development
+### Convex Environment Variables
 
-**`app/.env.local`**
+Set via `bunx convex env set KEY value`:
+
+| Variable | Description |
+|----------|-------------|
+| `SITE_URL` | Convex site URL (e.g. `https://your-deployment.convex.site`) - used by Better Auth as `baseURL` |
+| `APP_URL` | Frontend app URL (e.g. `https://your-app.workers.dev`) - used for callbacks |
+| `BETTER_AUTH_SECRET` | Random secret for Better Auth session encryption |
+| `STRIPE_SECRET_KEY` | Stripe secret key (starts with `sk_`) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (starts with `whsec_`) |
+
+### Local Vite Environment Variables
+
+**`.env.local`** (gitignored):
 ```bash
-# Convex Development
-CONVEX_DEPLOYMENT=dev:your-dev-deployment
-VITE_CONVEX_URL=https://your-dev-deployment.convex.cloud
-VITE_CONVEX_SITE_URL=https://your-dev-deployment.convex.site
-VITE_SITE_URL=http://localhost:3000
+CONVEX_DEPLOYMENT=dev:your-deployment
+VITE_CONVEX_URL=https://your-deployment.convex.cloud
+VITE_CONVEX_SITE_URL=https://your-deployment.convex.site
 ```
 
-### Production
+### Cloudflare Workers CI/CD (GitHub Integration)
 
-**`app/.env.production`**
-```bash
-# Convex Production
-VITE_CONVEX_URL=https://your-prod-deployment.convex.cloud
-VITE_CONVEX_SITE_URL=https://your-prod-deployment.convex.site
-VITE_SITE_URL=https://your-domain.com
-```
+`VITE_*` variables are **build-time only** (Vite inlines them into the JS bundle).
 
-### Server-Side Secrets (Convex Dashboard)
+**Setup** (Dashboard → Workers & Pages → Your Worker → Settings → Builds):
+1. Connect your GitHub repository
+2. Configure build settings:
+   - **Build command:** `bun run build`
+   - **Deploy command:** `bunx wrangler deploy`
+   - **Root directory:** `/app`
+   - **Production branch:** `main`
+3. Add **Build Variables** (Settings → Builds → Variables and secrets):
+   - `VITE_CONVEX_URL` - Must match your Convex deployment URL
+   - `VITE_CONVEX_SITE_URL` - Must match your Convex site URL
 
-Set these via CLI or Convex Dashboard:
+Pushes to `main` automatically build and deploy. Preview URLs are generated for other branches.
 
-```bash
-# Authentication
-npx convex env set BETTER_AUTH_SECRET "random-32-char-secret"
-npx convex env set BETTER_AUTH_BASE_URL "https://your-domain.com"
+### Better Auth trustedOrigins
 
-# Microsoft OAuth
-npx convex env set MICROSOFT_CLIENT_ID "..."
-npx convex env set MICROSOFT_CLIENT_SECRET "..."
-npx convex env set MICROSOFT_TENANT_ID "..."  # Optional
+In `convex/auth.ts`, configure `trustedOrigins` for all domains that can make auth requests:
 
-# Google OAuth (if using)
-npx convex env set GOOGLE_CLIENT_ID "..."
-npx convex env set GOOGLE_CLIENT_SECRET "..."
-
-# GitHub OAuth (if using)
-npx convex env set GITHUB_CLIENT_ID "..."
-npx convex env set GITHUB_CLIENT_SECRET "..."
+```typescript
+trustedOrigins: [
+    "http://localhost:3000",
+    "https://your-app.com",
+    "https://your-app.workers.dev",
+],
 ```
 
 ### Variable Naming Convention
@@ -1183,7 +1195,7 @@ npx convex env set GITHUB_CLIENT_SECRET "..."
 bun install
 
 # 2. Initialize Convex (first time only)
-npx convex dev --once
+bunx convex dev --once
 
 # 3. Set up environment variables
 # Copy .env.example to .env.local and fill in values
@@ -1199,7 +1211,7 @@ bun run dev
 bun run dev
 
 # In another terminal, watch Convex (if not using combined command)
-npx convex dev
+bunx convex dev
 ```
 
 ### Adding Features
@@ -1221,7 +1233,8 @@ bunx shadcn@latest add [component]
 bun run dev
 
 # 6. Deploy
-bun run deploy
+bunx convex deploy         # Deploy backend
+git push origin main       # Triggers Cloudflare CI/CD
 ```
 
 ### Package Scripts
@@ -1232,7 +1245,6 @@ bun run deploy
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "deploy": "convex deploy && bun run build && wrangler deploy",
     "convex": "convex dev",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -1392,25 +1404,21 @@ bun run deploy
 ```bash
 # Development
 bun run dev                    # Start dev server
-npx convex dev                 # Watch Convex functions
-npx convex dashboard           # Open Convex dashboard
+bunx convex dev                # Watch Convex functions
+bunx convex dashboard          # Open Convex dashboard
 
 # Convex
-npx convex env set KEY value   # Set environment variable
-npx convex env list            # List environment variables
-npx convex logs                # View function logs
+bunx convex env set KEY value  # Set environment variable
+bunx convex env list           # List environment variables
+bunx convex logs               # View function logs
 
 # UI Components
 bunx shadcn@latest add [name]  # Add shadcn component
 bunx shadcn@latest diff        # Check for updates
 
 # Deployment
-bun run build                  # Build for production
-wrangler deploy                # Deploy to Cloudflare
-npx convex deploy              # Deploy Convex functions
-
-# Full deploy
-bun run deploy                 # convex deploy + build + wrangler deploy
+bunx convex deploy             # Deploy Convex functions
+git push origin main           # Triggers Cloudflare CI/CD build + deploy
 ```
 
 ---
