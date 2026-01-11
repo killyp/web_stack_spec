@@ -322,49 +322,59 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 > });
 > ```
 
-### Server Middleware for Protected Routes
+### Protected Routes with beforeLoad
 
-Following [Better Auth TanStack Start recommendations](https://www.better-auth.com/docs/integrations/tanstack#middleware), use server middleware to protect routes.
+For Convex + Better Auth, use TanStack Router's `beforeLoad` to protect routes. The root route's `beforeLoad` sets `isAuthenticated` in the route context, which child routes can check.
 
-**`app/src/lib/middleware.ts`**
+> [!NOTE]
+> **Why beforeLoad instead of server middleware?**
+>
+> The Convex + Better Auth integration uses HTTP-based token validation. The `beforeLoad` approach integrates better with this pattern because the token is fetched once in the root route and the auth state is passed via route context. This matches the [official Convex + Better Auth example](https://github.com/get-convex/better-auth/tree/main/examples/tanstack).
+
+**`app/src/routes/dashboard.tsx`** (Protected Route Example)
 ```typescript
-import { redirect } from "@tanstack/react-router";
-import { createMiddleware } from "@tanstack/react-start";
-import { getToken } from "./auth-server";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useSession } from "../lib/auth-client";
 
-/**
- * Server middleware that protects routes requiring authentication.
- * Apply to any route via `server: { middleware: [authMiddleware] }`.
- * Captures the original URL for post-login redirect.
- */
-export const authMiddleware = createMiddleware().server(
-  async ({ next, context }) => {
-    const token = await getToken();
-
-    if (!token) {
-      // Capture original destination for post-login redirect
+export const Route = createFileRoute("/dashboard")({
+  beforeLoad: ({ context, location }) => {
+    if (!context.isAuthenticated) {
       throw redirect({
         to: "/login",
-        search: { redirect: context.location.pathname },
+        search: { redirect: location.pathname },
       });
     }
+  },
+  component: DashboardPage,
+});
 
-    return await next();
+function DashboardPage() {
+  const { data: session, isPending } = useSession();
+
+  if (isPending || !session?.user) {
+    return null;
   }
-);
+
+  return (
+    <div>
+      <h1>Welcome, {session.user.email}</h1>
+    </div>
+  );
+}
 ```
 
 ### Route Examples
 
 **`app/src/routes/index.tsx`** (Protected Home Page)
 ```typescript
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useSession } from "../lib/auth-client";
-import { authMiddleware } from "../lib/middleware";
 
 export const Route = createFileRoute("/")({
-  server: {
-    middleware: [authMiddleware],
+  beforeLoad: ({ context }) => {
+    if (!context.isAuthenticated) {
+      throw redirect({ to: "/login" });
+    }
   },
   component: HomePage,
 });
